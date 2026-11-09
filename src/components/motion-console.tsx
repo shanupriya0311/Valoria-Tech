@@ -1,7 +1,13 @@
 'use client';
-
-import React, { useState } from 'react';
-import { motion, AnimatePresence, useSpring, useMotionValue } from 'motion/react';
+import { supabase } from '@/lib/supabase';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  motion,
+  AnimatePresence,
+  useSpring,
+  useMotionValue,
+  useReducedMotion,
+} from 'motion/react';
 import {
   CheckCircle2,
   Loader2,
@@ -16,9 +22,10 @@ import {
   Cpu,
   Database,
   Cloud,
+  X,
+  Upload,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { SaveButton } from './save-button';
 
 // ============================================================================
 // DATA: SALESFORCE SCENARIOS
@@ -396,7 +403,328 @@ function DataStructuresSandbox() {
 // ============================================================================
 // MAIN LAUNCH PAGE COMPONENT (CONTAINING BOTH COMPONENTS 1 & 2)
 // ============================================================================
+function InternshipApplicationSheet({
+  onClose,
+}: {
+  onClose: () => void;
+}) {
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const reduceMotion = useReducedMotion();
+  const [saveMessage, setSaveMessage] = useState('');
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    closeButtonRef.current?.focus();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [onClose]);
+
+ 
+const handleSubmit = async (
+  event: React.FormEvent<HTMLFormElement>
+) => {
+  event.preventDefault();
+
+  setSaveMessage('Submitting your application...');
+
+  const formData = new FormData(event.currentTarget);
+
+  const firstName = String(formData.get('firstName') || '').trim();
+  const lastName = String(formData.get('lastName') || '').trim();
+  const email = String(formData.get('email') || '').trim();
+  const phone = String(formData.get('phone') || '').trim();
+  const degree = String(formData.get('degree') || '').trim();
+  const course = String(formData.get('course') || '');
+  const graduationYear = Number(formData.get('graduationYear'));
+
+  if (
+    !firstName ||
+    !lastName ||
+    !email ||
+    !phone ||
+    !degree ||
+    !course ||
+    !graduationYear
+  ) {
+    setSaveMessage('Please complete all required fields.');
+    return;
+  }
+
+  const { error } = await supabase
+    .from('Students')
+    .insert([
+      {
+        Firstname: firstName,
+        Lastname: lastName,
+        email: email,
+        Phone: phone,
+        Degree: degree,
+        Course: course,
+        YOG: graduationYear,
+      },
+    ]);
+
+  if (error) {
+    console.error('Supabase submission error:', error);
+    setSaveMessage(`Submission failed: ${error.message}`);
+    return;
+  }
+
+  setSaveMessage('Application submitted successfully!');
+
+  event.currentTarget.reset();
+};
+
+
+  return (
+    <motion.div
+      className="fixed inset-0 z-[120] flex items-end justify-center sm:items-center sm:p-5"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: reduceMotion ? 0.12 : 0.2 }}
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <div
+        aria-hidden="true"
+        className="internship-application-scrim absolute inset-0 bg-black/35 backdrop-blur-md"
+        onClick={onClose}
+      />
+      <motion.div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="internship-application-title"
+        initial={
+          reduceMotion
+            ? { opacity: 0 }
+            : { opacity: 0, y: 24, scale: 0.98 }
+        }
+        animate={
+          reduceMotion
+            ? { opacity: 1 }
+            : { opacity: 1, y: 0, scale: 1 }
+        }
+        exit={
+          reduceMotion
+            ? { opacity: 0 }
+            : { opacity: 0, y: 16, scale: 0.98 }
+        }
+        transition={
+          reduceMotion
+            ? { duration: 0.12 }
+            : { type: 'spring', stiffness: 300, damping: 30 }
+        }
+        onClick={(event) => event.stopPropagation()}
+        className="internship-application-surface relative z-10 flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl border border-white/20 text-white shadow-[0_32px_120px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.18)] sm:max-h-[min(88vh,820px)] sm:max-w-3xl sm:rounded-3xl"
+      >
+            <header className="relative shrink-0 border-b border-white/10 bg-white/[0.025] px-5 py-5 pr-16 sm:px-8 sm:py-6">
+              <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-sky-200/75">
+                Valoria internship
+              </div>
+              <h2
+                id="internship-application-title"
+                className="mt-1 text-xl font-semibold tracking-tight sm:text-2xl"
+              >
+                Apply for an internship
+              </h2>
+              <p className="mt-1.5 max-w-lg text-sm leading-relaxed text-neutral-300">
+                Share a little about yourself and your experience.
+              </p>
+              <button
+                ref={closeButtonRef}
+                type="button"
+                onClick={onClose}
+                aria-label="Close application form"
+                className="absolute right-4 top-4 flex size-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-neutral-300 transition hover:bg-white/[0.14] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300 sm:right-6 sm:top-5"
+              >
+                <X className="size-4" />
+              </button>
+            </header>
+
+            <form
+              onSubmit={handleSubmit}
+              className="flex min-h-0 flex-1 flex-col"
+            >
+              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-5 sm:px-8 sm:py-6">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="block text-xs font-medium text-neutral-300">
+                    First name
+                    <input
+                      name="firstName"
+                      autoComplete="given-name"
+                      className="mt-1.5 w-full rounded-xl border border-white/10 bg-black/35 px-3.5 py-2.5 text-sm text-white placeholder:text-neutral-500 focus:border-sky-300/60 focus:outline-none focus:ring-2 focus:ring-sky-300/15"
+                      placeholder="Alex"
+                    />
+                  </label>
+                  <label className="block text-xs font-medium text-neutral-300">
+                    Last name
+                    <input
+                      name="lastName"
+                      autoComplete="family-name"
+                      className="mt-1.5 w-full rounded-xl border border-white/10 bg-black/35 px-3.5 py-2.5 text-sm text-white placeholder:text-neutral-500 focus:border-sky-300/60 focus:outline-none focus:ring-2 focus:ring-sky-300/15"
+                      placeholder="Morgan"
+                    />
+                  </label>
+                  <label className="block text-xs font-medium text-neutral-300">
+                    Phone
+                    <input
+                      name="phone"
+                      type="tel"
+                      autoComplete="tel"
+                      className="mt-1.5 w-full rounded-xl border border-white/10 bg-black/35 px-3.5 py-2.5 text-sm text-white placeholder:text-neutral-500 focus:border-sky-300/60 focus:outline-none focus:ring-2 focus:ring-sky-300/15"
+                      placeholder="+1 (555) 000-0000"
+                    />
+                  </label>
+                  <label className="block text-xs font-medium text-neutral-300">
+                    Email
+                    <input
+                      name="email"
+                      type="email"
+                      autoComplete="email"
+                      className="mt-1.5 w-full rounded-xl border border-white/10 bg-black/35 px-3.5 py-2.5 text-sm text-white placeholder:text-neutral-500 focus:border-sky-300/60 focus:outline-none focus:ring-2 focus:ring-sky-300/15"
+                      placeholder="alex@example.com"
+                    />
+                  </label>
+                  <label className="block text-xs font-medium text-neutral-300">
+                    Password
+                    <input
+                      name="password"
+                      type="password"
+                      autoComplete="new-password"
+                      minLength={8}
+                      className="mt-1.5 w-full rounded-xl border border-white/10 bg-black/35 px-3.5 py-2.5 text-sm text-white placeholder:text-neutral-500 focus:border-sky-300/60 focus:outline-none focus:ring-2 focus:ring-sky-300/15"
+                      placeholder="At least 8 characters"
+                    />
+                  </label>
+                  <label className="block text-xs font-medium text-neutral-300">
+                    Degree
+                    <input
+                      name="degree"
+                      className="mt-1.5 w-full rounded-xl border border-white/10 bg-black/35 px-3.5 py-2.5 text-sm text-white placeholder:text-neutral-500 focus:border-sky-300/60 focus:outline-none focus:ring-2 focus:ring-sky-300/15"
+                      placeholder="B.S. Computer Science"
+                    />
+                  </label>
+                  <label className="block text-xs font-medium text-neutral-300">
+                    Course
+                    <select
+                      name="course"
+                      defaultValue=""
+                      className="mt-1.5 w-full appearance-none rounded-xl border border-white/10 bg-black/35 px-3.5 py-2.5 text-sm text-white focus:border-sky-300/60 focus:outline-none focus:ring-2 focus:ring-sky-300/15"
+                    >
+                      <option value="" disabled>
+                        Select a course
+                      </option>
+                      <option value="SDE">SDE</option>
+                      <option value="Salesforce">Salesforce</option>
+                      <option value="AI Product Engineer">AI Product Engineer</option>
+                    </select>
+                  </label>
+                  <label className="block text-xs font-medium text-neutral-300">
+                    Year of graduation
+                    <input
+                      name="graduationYear"
+                      type="number"
+                      min="1950"
+                      max="2100"
+                      step="1"
+                      className="mt-1.5 w-full rounded-xl border border-white/10 bg-black/35 px-3.5 py-2.5 text-sm text-white placeholder:text-neutral-500 focus:border-sky-300/60 focus:outline-none focus:ring-2 focus:ring-sky-300/15"
+                      placeholder="2027"
+                    />
+                  </label>
+                  <label className="block text-xs font-medium text-neutral-300 sm:col-span-2">
+                    Skills
+                    <textarea
+                      name="skills"
+                      rows={2}
+                      className="mt-1.5 w-full resize-y rounded-xl border border-white/10 bg-black/35 px-3.5 py-2.5 text-sm text-white placeholder:text-neutral-500 focus:border-sky-300/60 focus:outline-none focus:ring-2 focus:ring-sky-300/15"
+                      placeholder="Languages, tools, and areas of interest"
+                    />
+                  </label>
+                  <label className="block text-xs font-medium text-neutral-300 sm:col-span-2">
+                    Resume
+                    <span className="mt-1.5 flex min-h-11 items-center gap-2 rounded-xl border border-dashed border-white/15 bg-black/25 px-3.5 py-2 text-sm text-neutral-300">
+                      <Upload className="size-4 shrink-0 text-sky-200" />
+                      <input
+                        name="resume"
+                        type="file"
+                        accept=".pdf,.doc,.docx"
+                        className="min-w-0 flex-1 text-xs file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-white/10 file:px-2.5 file:py-1.5 file:text-xs file:text-white hover:file:bg-white/15"
+                      />
+                    </span>
+                    <span className="mt-1 block text-[11px] text-neutral-500">
+                      PDF or Word document
+                    </span>
+                  </label>
+                  <label className="block text-xs font-medium text-neutral-300">
+                    GitHub
+                    <input
+                      name="github"
+                      type="url"
+                      autoComplete="url"
+                      className="mt-1.5 w-full rounded-xl border border-white/10 bg-black/35 px-3.5 py-2.5 text-sm text-white placeholder:text-neutral-500 focus:border-sky-300/60 focus:outline-none focus:ring-2 focus:ring-sky-300/15"
+                      placeholder="https://github.com/username"
+                    />
+                  </label>
+                  <label className="block text-xs font-medium text-neutral-300">
+                    LinkedIn <span aria-hidden="true" className="text-sky-200">*</span>
+                    <span className="sr-only"> required</span>
+                    <input
+                      name="linkedin"
+                      type="url"
+                      autoComplete="url"
+                      required
+                      className="mt-1.5 w-full rounded-xl border border-white/10 bg-black/35 px-3.5 py-2.5 text-sm text-white placeholder:text-neutral-500 focus:border-sky-300/60 focus:outline-none focus:ring-2 focus:ring-sky-300/15"
+                      placeholder="https://linkedin.com/in/username"
+                    />
+                  </label>
+                </div>
+                {saveMessage && (
+                  <p
+                    role="status"
+                    className="rounded-xl border border-amber-300/20 bg-amber-300/[0.07] px-3.5 py-3 text-xs leading-relaxed text-amber-100"
+                  >
+                    {saveMessage}
+                  </p>
+                )}
+              </div>
+
+              <footer className="flex shrink-0 flex-col gap-3 border-t border-white/10 bg-[#111318]/80 px-5 py-4 backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between sm:px-8">
+                <p className="text-[11px] leading-relaxed text-neutral-400">
+                  Your information is not sent or stored yet.
+                </p>
+                <button
+                  type="submit"
+                  className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-white px-6 text-sm font-semibold text-black transition hover:bg-sky-100 active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300"
+                >
+                  Save application
+                  <ArrowRight className="size-4" />
+                </button>
+              </footer>
+        </form>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 export function LaunchSection() {
+  const [isApplicationOpen, setIsApplicationOpen] = useState(false);
+  const applicationButtonRef = useRef<HTMLButtonElement>(null);
+  const closeApplicationSheet = useCallback(() => {
+    setIsApplicationOpen(false);
+    window.requestAnimationFrame(() => applicationButtonRef.current?.focus());
+  }, []);
+
   // Top Navigation Tabs: Salesforce, SDE, Gen AI, Data Structures
   const [activeTab, setActiveTab] = useState<string>('salesforce');
   // Salesforce Scenarios: 01 IT Asset, 02 Source-to-Pay, 03 ICSO
@@ -452,7 +780,8 @@ export function LaunchSection() {
   const currentCli = CLI_TABS.find((c) => c.id === activeCliTab) || CLI_TABS[0]!;
 
   return (
-    <section
+    <>
+      <section
       id="launch"
       className="relative w-full bg-black text-white py-20 sm:py-28 px-4 sm:px-6 md:px-8 lg:px-12 border-t border-white/[0.08] overflow-hidden"
     >
@@ -692,11 +1021,22 @@ export function LaunchSection() {
                     className="relative z-10 flex flex-col items-center gap-3.5 transition-transform duration-75"
                   >
                     {/* The Smart Save Button customized to "Apply for Internship" */}
-                    <SaveButton
-                      idleText="Apply for Internship"
-                      loadingText="Submitting Application…"
-                      savedText="Application Submitted!"
-                    />
+                    <motion.button
+                      ref={applicationButtonRef}
+                      type="button"
+                      onClick={() => setIsApplicationOpen(true)}
+                      whileHover={{ scale: 1.045, y: -3 }}
+                      whileTap={{ scale: 0.97 }}
+                      transition={{ type: 'spring', stiffness: 360, damping: 28 }}
+                      aria-haspopup="dialog"
+                      aria-expanded={isApplicationOpen}
+                      className="group flex min-h-[58px] min-w-[270px] items-center justify-center gap-3 rounded-full border border-white/20 bg-white/[0.08] px-7 text-base font-medium tracking-tight text-white shadow-[0_18px_48px_-18px_rgba(96,165,250,0.7),inset_0_1px_0_rgba(255,255,255,0.16)] backdrop-blur-xl transition-colors hover:bg-white/[0.13] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sky-300"
+                    >
+                      <span className="flex size-9 items-center justify-center rounded-full border border-white/15 bg-white/[0.1]">
+                        <ArrowRight className="size-4 stroke-[2.2] transition-transform group-hover:translate-x-0.5" />
+                      </span>
+                      Apply for Internship
+                    </motion.button>
 
                     {/* Non-touchable label: Work on Enterprise Projects */}
                     <div className="flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-white/[0.03] border border-white/[0.08] text-neutral-400 text-xs font-mono tracking-wide select-none pointer-events-none">
@@ -820,7 +1160,13 @@ export function LaunchSection() {
           </div>
         </div>
       </div>
-    </section>
+      </section>
+      <AnimatePresence>
+        {isApplicationOpen && (
+          <InternshipApplicationSheet onClose={closeApplicationSheet} />
+        )}
+      </AnimatePresence>
+    </>
   );
 }
 
